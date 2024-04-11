@@ -4,7 +4,7 @@
 This is the Github repo for the project. For details, visit [DevPost](https://devpost.com/software/csci-2470-final-project-text-to-music)
 
 ## Team Member
-Xiaoyan Liu(xliu252), Yuhong Zhang(yzhan709), Ziyu Wang(zwang569)
+Xiaoyan Liu, Yuhong Zhang, Ziyu Wang
 
 
 ## Data
