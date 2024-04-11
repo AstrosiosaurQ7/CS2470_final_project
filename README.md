@@ -1,5 +1,5 @@
 # CS2470 Final Project: Text to Music
-text sentiment analysis and emotion-based music generation
+### *text sentiment analysis and emotion-based music generation*
 
 This is the Github repo for the project. For details, visit [DevPost](https://devpost.com/software/csci-2470-final-project-text-to-music)
 
@@ -16,4 +16,4 @@ The **EMOPIA** dataset is a specially curated collection designed for tasks rela
 
 The dataset contains a total of 1,079 piano pieces, distributed across four emotional quadrants as follows: 250, 265, 253, and 310 pieces, respectively. The lengths of these music pieces range from 31.9 to 40.6 seconds, offering a broad spectrum for analysis in our final project.
 
-Data is not uploaded due to file size limitation.
+**Data is not uploaded due to file size limitation**
