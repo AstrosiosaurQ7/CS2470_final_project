@@ -17,3 +17,10 @@ The **EMOPIA** dataset is a specially curated collection designed for tasks rela
 The dataset contains a total of 1,079 piano pieces, distributed across four emotional quadrants as follows: 250, 265, 253, and 310 pieces, respectively. The lengths of these music pieces range from 31.9 to 40.6 seconds, offering a broad spectrum for analysis in our final project.
 
 **Data is not uploaded due to file size limitation**
+
+## Model
+
+#### Gan
+
+1. Update a rough structure based on array-typed data, Pytorch.
+2. Train on small sample of data(under construction)
