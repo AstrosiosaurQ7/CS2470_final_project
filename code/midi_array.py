@@ -109,6 +109,7 @@ def get_music_data(folder_path, label_path):
             
             # Convert MIDI to array
             result_array = mid2arry(mid_test)
+
             # align the data
             if len(result_array) > 23000:
                 result_array = result_array[:23000]
@@ -124,7 +125,7 @@ def get_music_data(folder_path, label_path):
             emo = get_emo(label, filename_without_extension)
             
             # Add MIDI data and emotion label 
-            midi_lib.append({'midi_arr': result_array, 'emo_label': emo})
+            midi_lib.append({'midi_arr': result_array.tolist(), 'emo_label': emo})
 
             print("{} done".format(file_name))
     return midi_lib
