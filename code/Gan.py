@@ -5,6 +5,8 @@ from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 import os
 import argparse
+import midi2array
+
 '''nn.Linear()里具体多少要看music array是多少，我按照lxy给的图放的'''
 '''还没train，但具体框架在这了'''
 '''用了Pytorch，试试新的，正好我yolo那里也是pytorch'''
@@ -86,6 +88,14 @@ if __name__ == "__main__":
     # Simulate data assuming 500 pieces, each is [29617, 88]
     # TODO
     # import data here
+    #######xyyyyyyyy#######################
+    # label path     
+    label_path = r'D:\BrownUnivercity\CS2470\final_proj\data\EMOPIA_1.0\label.csv'
+    # Define the folder path
+    folder_path = r'D:\BrownUnivercity\CS2470\final_proj\data\EMOPIA_1.0\midis'
+    music_dic = get_music_data(folder_path,label_path)
+    #############xyyyyyyyyyyyy##############
+    
     music_data = torch.randint(0, 2, (500, 29617, 88), dtype=torch.float32)
 
     # batch size
