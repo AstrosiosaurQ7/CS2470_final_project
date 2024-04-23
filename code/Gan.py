@@ -3,15 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 import matplotlib.pyplot as plt
+from midi_array import *
 import numpy as np
 import os
 import argparse
-import midi2array
-
-'''nn.Linear()里具体多少要看music array是多少，我按照lxy给的图放的'''
-'''还没train，但具体框架在这了'''
-'''用了Pytorch，试试新的，正好我yolo那里也是pytorch'''
-'''最好装一下cude support pytorch可以用GPU，否则CPU负荷太大，怎么装or更新群里问wzy'''
 
 
 class MusicDataset(Dataset):
@@ -28,7 +23,6 @@ class MusicDataset(Dataset):
         return midi_arr, emo_label
 
 
-# GAN Class
 class MusicGAN:
     def __init__(self, midi_dim, noise_dim=100, emotion_dim=10, batch_size=32, lr=0.0002, beta1=0.5):
         super().__init__()
@@ -50,6 +44,7 @@ class MusicGAN:
 
         # Discriminator
         self.discriminator = nn.Sequential(
+            nn.Embedding(4, emotion_dim),
             nn.Linear(midi_dim + emotion_dim, 512),
             nn.LeakyReLU(0.2),
             nn.Linear(512, 256),
@@ -66,39 +61,53 @@ class MusicGAN:
     def train(self, dataset, epochs):
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        print(device)
         self.generator.to(device)
         self.discriminator.to(device)
 
         for epoch in range(epochs):
             for midi_arr, emo_labels in dataloader:
-                midi_arr, emo_labels = midi_arr.to(device), emo_labels.to(device).squeeze()
+                real_data = midi_arr.to(device)
+                labels = emo_labels.to(device)
+                batch_size = real_data.size(0)
 
-                # Discriminator Training
-                real_labels = torch.ones(midi_arr.size(0), 1, device=device)
-                fake_labels = torch.zeros(midi_arr.size(0), 1, device=device)
-
+                # Train Discriminator
                 self.discriminator.zero_grad()
-                real_outputs = self.discriminator(torch.cat([midi_arr, self.label_emb(emo_labels)], dim=1))
-                d_loss_real = self.criterion(real_outputs, real_labels)
+                real_labels = torch.ones(batch_size, 1, device=device)
+                fake_labels = torch.zeros(batch_size, 1, device=device)
 
-                noise = torch.randn(midi_arr.size(0), self.noise_dim, device=device)
-                fake_midi = self.generator(torch.cat([noise, self.label_emb(emo_labels)], dim=1))
-                fake_outputs = self.discriminator(torch.cat([fake_midi, self.label_emb(emo_labels)], dim=1))
-                d_loss_fake = self.criterion(fake_outputs, fake_labels)
+                # Real data
+                label_emb = self.discriminator[0](labels).view(batch_size, -1)
+                real_inputs = torch.cat([real_data, label_emb], 1)
+                output_real = self.discriminator(real_inputs)
+                loss_real = self.criterion(output_real, real_labels)
 
-                d_loss = d_loss_real + d_loss_fake
+                # Generated data
+                noise = torch.randn(batch_size, self.noise_dim, device=device)
+                fake_data = self.generator(torch.cat([noise, self.generator[0](labels).view(batch_size, -1)], 1))
+                label_emb = self.discriminator[0](labels).view(batch_size, -1)
+                fake_inputs = torch.cat([fake_data, label_emb], 1)
+                output_fake = self.discriminator(fake_inputs)
+                loss_fake = self.criterion(output_fake, fake_labels)
+
+                # Backprop and optimize
+                d_loss = (loss_real + loss_fake) / 2
                 d_loss.backward()
                 self.optim_D.step()
 
-                # Generator Training
+                # Train Generator
                 self.generator.zero_grad()
-                reclassified_fake_outputs = self.discriminator(
-                    torch.cat([fake_midi, self.label_emb(emo_labels)], dim=1))
-                g_loss = self.criterion(reclassified_fake_outputs, real_labels)
+                label_emb = self.generator[0](labels).view(batch_size, -1)
+                generated_data = self.generator(torch.cat([noise, label_emb], 1))
+                label_emb = self.discriminator[0](labels).view(batch_size, -1)
+                gen_inputs = torch.cat([generated_data, label_emb], 1)
+                output_gen = self.discriminator(gen_inputs)
+                g_loss = self.criterion(output_gen, real_labels)
+
                 g_loss.backward()
                 self.optim_G.step()
 
-            print(f'Epoch {epoch + 1}: D Loss: {d_loss.item()}, G Loss: {g_loss.item()}')
+            print(f'Epoch [{epoch + 1}/{epochs}] - Loss D: {d_loss.item()}, Loss G: {g_loss.item()}')
 
     def generate_music(self, emotion_label, num_samples=1):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -106,55 +115,21 @@ class MusicGAN:
         noise = torch.randn(num_samples, self.noise_dim, device=device)
         labels = torch.LongTensor([emotion_label] * num_samples).to(device)
         with torch.no_grad():
-            generated_music = self.generator(torch.cat([noise, self.label_emb(labels)], dim=1)).cpu().numpy()
-        return generated_music
+            label_emb = self.generator[0](labels).view(num_samples, -1)
+            music = self.generator(torch.cat([noise, label_emb], 1)).detach().numpy()
+        return music
 
     @staticmethod
-    def plot_generated_music(generated_music):
-        plt.figure(figsize=(12, 6))
-        plt.imshow(generated_music, aspect='auto', cmap='binary')
+    def plot_music(self, music):
+        plt.figure(figsize=(12, 8))
+        plt.imshow(music, aspect='auto', cmap='viridis')
         plt.colorbar()
-        plt.title('Generated Music Visual Representation')
-        plt.xlabel('Time Steps')
-        plt.ylabel('Piano Keys')
+        plt.title('Generated Music Visualization')
+        plt.xlabel('Piano Keys')
+        plt.ylabel('Time Steps')
         plt.show()
 
 
-# Example usage
+# Deprecate
 if __name__ == "__main__":
-<<<<<<< HEAD
-    # Simulate data assuming 500 pieces, each is [29617, 88]
-    # TODO
-    # import data here
-    #######xyyyyyyyy#######################
-    # label path     
-    label_path = r'D:\BrownUnivercity\CS2470\final_proj\data\EMOPIA_1.0\label.csv'
-    # Define the folder path
-    folder_path = r'D:\BrownUnivercity\CS2470\final_proj\data\EMOPIA_1.0\midis'
-    music_dic = get_music_data(folder_path,label_path)
-    #############xyyyyyyyyyyyy##############
-    
-    music_data = torch.randint(0, 2, (500, 29617, 88), dtype=torch.float32)
-
-    # batch size
-    batch_size = 100
-
-    # DataLoader setup
-    dataset = TensorDataset(music_data)
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-    # Device selection
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Model initialization and training
-    gan = MusicGAN().to(device)
-    gan.train(data_loader, epochs=5, device=device)
-    # TODO
-    # evaluate and test
-=======
-    # Placeholder for dataset loading logic
-    # data_loader = DataLoader(...)
-    # gan = EmotionMusicGAN().to(device)
-    # gan.train(data_loader)
     pass
->>>>>>> df40eb098ec7aabbb62d816856509e2e479bd62e
