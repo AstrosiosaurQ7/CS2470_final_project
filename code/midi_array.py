@@ -96,8 +96,10 @@ folder_path = r'D:\BrownUnivercity\CS2470\final_proj\data\EMOPIA_1.0\midis'
 def get_music_data(folder_path, label_path):
     # Initialize an empty dictionary to store MIDI data
     midi_lib = []
+    label_lib = []
 
     # Loop through all files in the folder
+    cnt = 0
     for file_name in os.listdir(folder_path):
         # Check if the file is a MIDI file
         if file_name.endswith('.mid'):
@@ -110,11 +112,13 @@ def get_music_data(folder_path, label_path):
             # Convert MIDI to array
             result_array = mid2arry(mid_test)
 
-            # align the data
-            if len(result_array) > 23000:
-                result_array = result_array[:23000]
+            '''ALIGN'''
+            # TODO align the data 10000
+            align_length = 10000
+            if len(result_array) > align_length:
+                result_array = result_array[:align_length]
             else:
-                num_to_pad = 23000 - len(result_array)
+                num_to_pad = align_length - len(result_array)
                 result_array = np.pad(result_array, ((0, num_to_pad), (0, 0)), mode='constant')               
 
             # file_name
@@ -125,7 +129,12 @@ def get_music_data(folder_path, label_path):
             emo = get_emo(label, filename_without_extension)
             
             # Add MIDI data and emotion label 
-            midi_lib.append({'midi_arr': result_array.tolist(), 'emo_label': emo})
+            midi_lib.append(result_array)
+            label_lib.append(int(emo))
 
             print("{} done".format(file_name))
-    return midi_lib
+            cnt += 1
+        # speed up
+        if cnt >= 500:
+            break
+    return np.array(midi_lib), np.array(label_lib)
