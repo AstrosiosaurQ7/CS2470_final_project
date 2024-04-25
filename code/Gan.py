@@ -12,24 +12,28 @@ class MusicGAN:
 
         # Generator
         self.generator = nn.Sequential(
-            nn.Linear(88 + 4, 256),  # Input: Concatenated noise vector and one-hot emotion labels
+            nn.Linear(88 + 4, 128),  # Input: Concatenated noise vector and one-hot emotion labels
             nn.LeakyReLU(0.2),
+            nn.BatchNorm1d(128),
+            nn.Linear(128, 256),
+            nn.Dropout(0.3),
             nn.Linear(256, 10000 * 88),  # Output to match the music data dimension
             nn.Tanh()
         ).to(device)
 
         # Discriminator
         self.discriminator = nn.Sequential(
-            nn.Linear(10000 * 88 + 4, 512),  # Input: Concatenated music data and one-hot emotion labels
-            nn.LeakyReLU(0.2),
-            nn.Linear(512, 1),
+            nn.Linear(10000 * 88 + 4, 256),  # Input: Concatenated music data and one-hot emotion labels
+            nn.LeakyReLU(0.3),
+            nn.Dropout(0.3),
+            nn.Linear(256, 1),
             nn.Sigmoid()
         ).to(device)
 
         # Loss and Optimizers
         self.loss_function = nn.BCELoss()
-        self.optimizer_g = optim.Adam(self.generator.parameters(), lr=0.001, betas=(0.5, 0.999))
-        self.optimizer_d = optim.Adam(self.discriminator.parameters(), lr=0.0005, betas=(0.5, 0.999))
+        self.optimizer_g = optim.Adam(self.generator.parameters(), lr=0.02, betas=(0.5, 0.999))
+        self.optimizer_d = optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
     def train(self, music_data, label_data):
         dataset = TensorDataset(torch.tensor(music_data, dtype=torch.float), torch.tensor(label_data, dtype=torch.long))
@@ -49,7 +53,7 @@ class MusicGAN:
                 fake_data = self.generator(torch.cat((noise, labels), 1))
                 fake_output = self.discriminator(torch.cat((fake_data.detach(), labels), 1))
                 fake_loss = self.loss_function(fake_output, torch.zeros(real_data.size(0), 1).to(self.device))
-git
+
                 d_loss = real_loss + fake_loss
                 d_loss.backward()
                 self.optimizer_d.step()

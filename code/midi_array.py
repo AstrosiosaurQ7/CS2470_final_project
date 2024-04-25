@@ -131,10 +131,9 @@ def get_music_data(folder_path, label_path):
             # Add MIDI data and emotion label 
             midi_lib.append(result_array)
             label_lib.append(int(emo))
-
-            print("{} done".format(file_name))
             cnt += 1
         # speed up
         if cnt >= 500:
+            print("midi done")
             break
     return np.array(midi_lib), np.array(label_lib)
