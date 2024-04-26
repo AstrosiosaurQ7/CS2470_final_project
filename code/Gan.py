@@ -5,10 +5,11 @@ import numpy as np
 
 
 class MusicGAN:
-    def __init__(self, device, epochs=50, batch_size=32):
+    def __init__(self,  align, device, epochs=50, batch_size=32):
         self.device = device
         self.epochs = epochs
         self.batch_size = batch_size
+        self.align = align
 
         # Generator
         self.generator = nn.Sequential(
@@ -17,13 +18,13 @@ class MusicGAN:
             nn.BatchNorm1d(128),
             nn.Linear(128, 256),
             nn.Dropout(0.3),
-            nn.Linear(256, 10000 * 88),  # Output to match the music data dimension
+            nn.Linear(256, self.align * 88),  # Output to match the music data dimension
             nn.Tanh()
         ).to(device)
 
         # Discriminator
         self.discriminator = nn.Sequential(
-            nn.Linear(10000 * 88 + 4, 256),  # Input: Concatenated music data and one-hot emotion labels
+            nn.Linear(self.align * 88 + 4, 256),  # Input: Concatenated music data and one-hot emotion labels
             nn.LeakyReLU(0.3),
             nn.Dropout(0.3),
             nn.Linear(256, 1),
@@ -67,6 +68,38 @@ class MusicGAN:
 
             print(
                 f'Epoch {epoch + 1}/{self.epochs}, Discriminator Loss: {d_loss.item()}, Generator Loss: {g_loss.item()}')
+
+    def generate(self, label):
+        """
+        Generate music based on the emotion label.
+
+        :param label: int, an emotion label from 1 to 4
+        :return: np.array, generated music array shaped [20000, 88]
+        """
+        # Ensure label is within the valid range
+        if label not in [1, 2, 3, 4]:
+            raise ValueError("Label must be one of [1, 2, 3, 4]")
+
+        # One-hot encode the label
+        label_one_hot = np.zeros((1, 4))
+        label_one_hot[0, label - 1] = 1
+        label_tensor = torch.FloatTensor(label_one_hot).to(self.device)
+
+        # Generate random noise
+        noise = torch.randn(1, 88).to(self.device)  # 88 as the noise dimension to match your earlier setup
+
+        # Concatenate noise and label
+        generator_input = torch.cat((noise, label_tensor), dim=1)
+
+        # Generate music data
+        with torch.no_grad():
+            generated_data = self.generator(generator_input)
+            generated_music = generated_data.view(20000, 88)  # Reshape to match the piano roll shape
+
+        # Convert tensor to numpy array for easier handling outside PyTorch
+        generated_music_np = generated_music.cpu().numpy()
+
+        return generated_music_np
 
     def save_model(self, path):
         torch.save({
