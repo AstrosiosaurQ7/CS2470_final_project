@@ -1,4 +1,5 @@
 from mido import Message, MidiFile, MidiTrack, MetaMessage
+import mido
 import string
 import numpy as np
 import pandas as pd
@@ -54,8 +55,6 @@ def mid2arry(mid, min_msg_pct=0.1):
     min_n_msg = max(tracks_len) * min_msg_pct
     # convert each track to nested list
     all_arys = []
-    if mid.tracks[0][0].tempo != 500000:
-        print(mid.tracks[0][0].tempo)
     for i in range(len(mid.tracks)):
         if len(mid.tracks[i]) > min_n_msg:
             ary_i = track2seq(mid.tracks[i])
@@ -71,37 +70,6 @@ def mid2arry(mid, min_msg_pct=0.1):
     sums = all_arys.sum(axis=1)
     ends = np.where(sums > 0)[0]
     return all_arys[min(ends): max(ends)]
-
-
-def arry2mid(ary, tempo=500000):
-    # get the difference
-    new_ary = np.concatenate([np.array([[0] * 88]), np.array(ary)], axis=0)
-    changes = new_ary[1:] - new_ary[:-1]
-    # create a midi file with an empty track
-    mid_new = MidiFile()
-    track = MidiTrack()
-    mid_new.tracks.append(track)
-    track.append(MetaMessage('set_tempo', tempo=tempo, time=0))
-    # add difference in the empty track
-    last_time = 0
-    for ch in changes:
-        if set(ch) == {0}:  # no change
-            last_time += 1
-        else:
-            on_notes = np.where(ch > 0)[0]
-            on_notes_vol = ch[on_notes]
-            off_notes = np.where(ch < 0)[0]
-            first_ = True
-            for n, v in zip(on_notes, on_notes_vol):
-                new_time = last_time if first_ else 0
-                track.append(Message('note_on', note=n + 21, velocity=v, time=new_time))
-                first_ = False
-            for n in off_notes:
-                new_time = last_time if first_ else 0
-                track.append(Message('note_off', note=n + 21, velocity=0, time=new_time))
-                first_ = False
-            last_time = 0
-    return mid_new
 
 
 # get emotion label
@@ -122,7 +90,7 @@ def get_label(label_path):
 
 # label path     
 label_path = r'D:\BrownUnivercity\CS2470\final_proj\data\EMOPIA_1.0\label.csv'
-# Define the folder path
+# music folder path
 folder_path = r'D:\BrownUnivercity\CS2470\final_proj\data\EMOPIA_1.0\midis'
 
 
@@ -133,7 +101,6 @@ def get_music_data(folder_path, label_path):
 
     # Loop through all files in the folder
     cnt = 0
-    align_length = 15000
     for file_name in os.listdir(folder_path):
         # Check if the file is a MIDI file
         if file_name.endswith('.mid'):
@@ -147,8 +114,8 @@ def get_music_data(folder_path, label_path):
             result_array = mid2arry(mid_test)
 
             '''ALIGN'''
-            # TODO align the data 15000
-
+            # TODO align the data 10000
+            align_length = 10000
             if len(result_array) > align_length:
                 result_array = result_array[:align_length]
             else:
@@ -167,4 +134,42 @@ def get_music_data(folder_path, label_path):
             label_lib.append(int(emo))
             cnt += 1
         # speed up
-    return np.array(midi_lib), np.array(label_lib), align_length
+        if cnt >= 500:
+            print("midi done")
+            break
+    return np.array(midi_lib), np.array(label_lib)
+
+
+# array to midi
+def arry2mid(ary, tempo=500000):
+    # get the difference
+    new_ary = np.concatenate([np.array([[0] * 88]), np.array(ary)], axis=0)
+    changes = new_ary[1:] - new_ary[:-1]
+    # create a midi file with an empty track
+    mid_new = mido.MidiFile()
+    track = mido.MidiTrack()
+    mid_new.tracks.append(track)
+    track.append(mido.MetaMessage('set_tempo', tempo=tempo, time=0))
+    # add difference in the empty track
+    last_time = 0
+    for ch in changes:
+        if set(ch) == {0}:  # no change
+            last_time += 1
+        else:
+            on_notes = np.where(ch > 0)[0]
+            on_notes_vol = ch[on_notes]
+            off_notes = np.where(ch < 0)[0]
+            first_ = True
+            for n, v in zip(on_notes, on_notes_vol):
+                new_time = last_time if first_ else 0
+                track.append(mido.Message('note_on', note=n + 21, velocity=v, time=new_time))
+                first_ = False
+            for n in off_notes:
+                new_time = last_time if first_ else 0
+                track.append(mido.Message('note_off', note=n + 21, velocity=0, time=new_time))
+                first_ = False
+            last_time = 0
+    return mid_new
+
+# mid_new = arry2mid(result_array, 500000)
+# mid_new.save('mid_new.mid')
