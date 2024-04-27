@@ -14,9 +14,8 @@ class MusicGAN:
         # Generator
         self.generator = nn.Sequential(
             nn.Linear(88 + 4, 128),  # Input: Concatenated noise vector and one-hot emotion labels
-            nn.LeakyReLU(0.2),
-            nn.BatchNorm1d(128),
             nn.Linear(128, 256),
+            nn.LeakyReLU(0.2),
             nn.Dropout(0.3),
             nn.Linear(256, self.align * 88),  # Output to match the music data dimension
             nn.Tanh()
@@ -34,7 +33,7 @@ class MusicGAN:
         # Loss and Optimizers
         self.loss_function = nn.BCELoss()
         self.optimizer_g = optim.Adam(self.generator.parameters(), lr=0.02, betas=(0.5, 0.999))
-        self.optimizer_d = optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+        self.optimizer_d = optim.Adam(self.discriminator.parameters(), lr=0.0003, betas=(0.5, 0.999))
 
     def train(self, music_data, label_data):
         dataset = TensorDataset(torch.tensor(music_data, dtype=torch.float), torch.tensor(label_data, dtype=torch.long))
@@ -92,12 +91,13 @@ class MusicGAN:
         generator_input = torch.cat((noise, label_tensor), dim=1)
 
         # Generate music data
+        self.generator.eval()
         with torch.no_grad():
             generated_data = self.generator(generator_input)
-            generated_music = generated_data.view(20000, 88)  # Reshape to match the piano roll shape
+            generated_music = generated_data.view(self.align, 88)  # Reshape to match the piano roll shape
 
         # Convert tensor to numpy array for easier handling outside PyTorch
-        generated_music_np = generated_music.cpu().numpy()
+        generated_music_np = generated_music.gpu().numpy()
 
         return generated_music_np
 
@@ -108,3 +108,6 @@ class MusicGAN:
             'optimizer_g_state_dict': self.optimizer_g.state_dict(),
             'optimizer_d_state_dict': self.optimizer_d.state_dict()
         }, path)
+
+    def eval(self):
+        pass
