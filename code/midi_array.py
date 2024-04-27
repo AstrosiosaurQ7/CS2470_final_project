@@ -101,6 +101,10 @@ def get_music_data(folder_path, label_path):
 
     # Loop through all files in the folder
     cnt = 0
+    '''ALIGN'''
+    # TODO align the data 15000
+    align_length = 15000
+    
     for file_name in os.listdir(folder_path):
         # Check if the file is a MIDI file
         if file_name.endswith('.mid'):
@@ -112,10 +116,6 @@ def get_music_data(folder_path, label_path):
             
             # Convert MIDI to array
             result_array = mid2arry(mid_test)
-
-            '''ALIGN'''
-            # TODO align the data 10000
-            align_length = 10000
             if len(result_array) > align_length:
                 result_array = result_array[:align_length]
             else:
@@ -133,11 +133,8 @@ def get_music_data(folder_path, label_path):
             midi_lib.append(result_array)
             label_lib.append(int(emo))
             cnt += 1
-        # speed up
-        if cnt >= 500:
-            print("midi done")
-            break
-    return np.array(midi_lib), np.array(label_lib)
+    # speed up
+    return np.array(midi_lib), np.array(label_lib), align_length
 
 
 # array to midi
@@ -170,6 +167,3 @@ def arry2mid(ary, tempo=500000):
                 first_ = False
             last_time = 0
     return mid_new
-
-# mid_new = arry2mid(result_array, 500000)
-# mid_new.save('mid_new.mid')
