@@ -97,9 +97,8 @@ class MusicGAN:
             generated_music = generated_data.view(self.align, 88)  # Reshape to match the piano roll shape
 
         # Convert tensor to numpy array for easier handling outside PyTorch
-        generated_music_np = generated_music.gpu().numpy()
-
-        return generated_music_np
+        mus = generated_music.cpu().numpy()
+        return mus
 
     def save_model(self, path):
         torch.save({

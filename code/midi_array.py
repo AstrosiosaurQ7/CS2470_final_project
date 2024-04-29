@@ -104,7 +104,7 @@ def get_music_data(folder_path, label_path):
     '''ALIGN'''
     # TODO align the data 15000
     align_length = 15000
-    
+
     for file_name in os.listdir(folder_path):
         # Check if the file is a MIDI file
         if file_name.endswith('.mid'):
@@ -133,6 +133,7 @@ def get_music_data(folder_path, label_path):
             midi_lib.append(result_array)
             label_lib.append(int(emo))
             cnt += 1
+            break
     # speed up
     return np.array(midi_lib), np.array(label_lib), align_length
 
