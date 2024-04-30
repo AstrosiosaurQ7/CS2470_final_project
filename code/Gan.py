@@ -13,27 +13,36 @@ class MusicGAN:
 
         # Generator
         self.generator = nn.Sequential(
-            nn.Linear(88 + 4, 128),  # Input: Concatenated noise vector and one-hot emotion labels
+            nn.Linear(88 + 4, 128),
+            nn.ReLU(True),
+            nn.BatchNorm1d(128),
             nn.Linear(128, 256),
-            nn.LeakyReLU(0.2),
-            nn.Dropout(0.3),
-            nn.Linear(256, self.align * 88),  # Output to match the music data dimension
+            nn.ReLU(True),
+            nn.Linear(256, 512),
+            nn.ReLU(True),
+            nn.Linear(512, self.align * 88),
             nn.Tanh()
-        ).to(device)
+        ).to(self.device)
 
         # Discriminator
         self.discriminator = nn.Sequential(
-            nn.Linear(self.align * 88 + 4, 256),  # Input: Concatenated music data and one-hot emotion labels
-            nn.LeakyReLU(0.3),
+            nn.Linear(self.align * 88 + 4, 512),
+            nn.LeakyReLU(0.2, True),
             nn.Dropout(0.3),
-            nn.Linear(256, 1),
-            nn.Sigmoid()
-        ).to(device)
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, True),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.LeakyReLU(0.2, True),
+            nn.Dropout(0.2),
+            nn.Linear(128, 1),
+            nn.Sigmoid()  # Output a probability between 0 and 1
+        ).to(self.device)
 
         # Loss and Optimizers
         self.loss_function = nn.BCELoss()
-        self.optimizer_g = optim.Adam(self.generator.parameters(), lr=0.02, betas=(0.5, 0.999))
-        self.optimizer_d = optim.Adam(self.discriminator.parameters(), lr=0.0003, betas=(0.5, 0.999))
+        self.optimizer_g = optim.Adam(self.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+        self.optimizer_d = optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
     def train(self, music_data, label_data):
         dataset = TensorDataset(torch.tensor(music_data, dtype=torch.float), torch.tensor(label_data, dtype=torch.long))
@@ -68,37 +77,21 @@ class MusicGAN:
             print(
                 f'Epoch {epoch + 1}/{self.epochs}, Discriminator Loss: {d_loss.item()}, Generator Loss: {g_loss.item()}')
 
-    def generate(self, label):
-        """
-        Generate music based on the emotion label.
-
-        :param label: int, an emotion label from 1 to 4
-        :return: np.array, generated music array shaped [20000, 88]
-        """
-        # Ensure label is within the valid range
-        if label not in [1, 2, 3, 4]:
-            raise ValueError("Label must be one of [1, 2, 3, 4]")
-
-        # One-hot encode the label
-        label_one_hot = np.zeros((1, 4))
-        label_one_hot[0, label - 1] = 1
-        label_tensor = torch.FloatTensor(label_one_hot).to(self.device)
-
-        # Generate random noise
-        noise = torch.randn(1, 88).to(self.device)  # 88 as the noise dimension to match your earlier setup
-
-        # Concatenate noise and label
-        generator_input = torch.cat((noise, label_tensor), dim=1)
-
-        # Generate music data
+    def generate(self, emotion_label, device='cuda'):
+        # Ensure the generator is in evaluation mode
         self.generator.eval()
+        noise = torch.randn(1, 88, device=device)  # Adjust size if needed to match the first layer of the generator
+        emotion = nn.functional.one_hot(torch.tensor([emotion_label - 1]), num_classes=4).float().to(device)
+        gen_input = torch.cat((noise, emotion), 1)
+        # Generate music data
         with torch.no_grad():
-            generated_data = self.generator(generator_input)
-            generated_music = generated_data.view(self.align, 88)  # Reshape to match the piano roll shape
+            generated_music = self.generator(gen_input)
+        generated_music = generated_music.view(self.align, 88)
+        generated_music = ((generated_music + 1) / 2) * 127  # Scale and shift
+        threshold = 50  # Threshold can be adjusted based on desired sparsity
+        generated_music = torch.where(generated_music < threshold, torch.zeros_like(generated_music), generated_music)
 
-        # Convert tensor to numpy array for easier handling outside PyTorch
-        mus = generated_music.cpu().numpy()
-        return mus
+        return generated_music.cpu().numpy()
 
     def save_model(self, path):
         torch.save({
@@ -107,6 +100,3 @@ class MusicGAN:
             'optimizer_g_state_dict': self.optimizer_g.state_dict(),
             'optimizer_d_state_dict': self.optimizer_d.state_dict()
         }, path)
-
-    def eval(self):
-        pass
