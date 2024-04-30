@@ -102,8 +102,8 @@ def get_music_data(folder_path, label_path):
     # Loop through all files in the folder
     cnt = 0
     '''ALIGN'''
-    # TODO align the data 5000
-    align_length = 5000
+    # TODO align the data 2000
+    align_length = 2000
 
     for file_name in os.listdir(folder_path):
         # Check if the file is a MIDI file

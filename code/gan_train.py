@@ -28,7 +28,7 @@ def main():
     print(torch.cuda.get_device_name())
     music_data, label_data, align = write_music_data()
     print("midi done")
-    gan = MusicGAN(batch_size=256, epochs=20, align=align, device=device)
+    gan = MusicGAN(batch_size=256, epochs=30, align=align, device=device)
     gan.train(music_data, label_data)
     for i in range(1, 5):
         # each label 1 time

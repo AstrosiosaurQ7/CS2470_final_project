@@ -13,7 +13,7 @@ class MusicGAN:
 
         # Generator
         self.generator = nn.Sequential(
-            nn.Linear(88 + 4, 128),
+            nn.Linear(100 + 4, 128),
             nn.ReLU(True),
             nn.BatchNorm1d(128),
             nn.Linear(128, 256),
@@ -32,6 +32,7 @@ class MusicGAN:
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2, True),
             nn.Dropout(0.3),
+            nn.BatchNorm1d(256),
             nn.Linear(256, 128),
             nn.LeakyReLU(0.2, True),
             nn.Dropout(0.2),
@@ -58,7 +59,7 @@ class MusicGAN:
                 real_output = self.discriminator(torch.cat((real_data, labels), 1))
                 real_loss = self.loss_function(real_output, torch.ones(real_data.size(0), 1).to(self.device))
 
-                noise = torch.randn(real_data.size(0), 88).to(self.device)
+                noise = torch.randn(real_data.size(0), 100).to(self.device)
                 fake_data = self.generator(torch.cat((noise, labels), 1))
                 fake_output = self.discriminator(torch.cat((fake_data.detach(), labels), 1))
                 fake_loss = self.loss_function(fake_output, torch.zeros(real_data.size(0), 1).to(self.device))
@@ -80,7 +81,7 @@ class MusicGAN:
     def generate(self, emotion_label, device='cuda'):
         # Ensure the generator is in evaluation mode
         self.generator.eval()
-        noise = torch.randn(1, 88, device=device)  # Adjust size if needed to match the first layer of the generator
+        noise = torch.randn(1, 100, device=device)  # Adjust size if needed to match the first layer of the generator
         emotion = nn.functional.one_hot(torch.tensor([emotion_label - 1]), num_classes=4).float().to(device)
         gen_input = torch.cat((noise, emotion), 1)
         # Generate music data
@@ -92,11 +93,3 @@ class MusicGAN:
         generated_music = torch.where(generated_music < threshold, torch.zeros_like(generated_music), generated_music)
 
         return generated_music.cpu().numpy()
-
-    def save_model(self, path):
-        torch.save({
-            'generator_state_dict': self.generator.state_dict(),
-            'discriminator_state_dict': self.discriminator.state_dict(),
-            'optimizer_g_state_dict': self.optimizer_g.state_dict(),
-            'optimizer_d_state_dict': self.optimizer_d.state_dict()
-        }, path)
