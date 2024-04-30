@@ -41,24 +41,30 @@ folder_path = r'D:\BrownUnivercity\CS2470\final_proj\CS2470_final_project\data\t
 def get_music_data(folder_path, label_path):
     music_data = []
     label_data = []
+    align_length = 500
     for file_name in os.listdir(folder_path):
         # Check if the file is a MIDI file
         if file_name.endswith('.mid'):
             # Construct the full path to the MIDI file
             midi_file_path = os.path.join(folder_path, file_name)
-            
             # Load the MIDI file
             mid = MidiFile(midi_file_path)
             song_msg = get_song_msg(mid)
 
-        music_data.append(song_msg)
+        #  align the data 500
+        if len(song_msg) > align_length:
+            result_array = song_msg[:align_length]
+        else:
+            num_to_pad = align_length - len(song_msg)
+            result_array = np.pad(song_msg, ((0, num_to_pad), (0, 0)), mode='constant') 
+
+        music_data.append(result_array)
         # label
         filename_without_extension = os.path.splitext(file_name)[0]
         labels = get_label(label_path)
         # print(labels)
         emo = get_emo(labels, filename_without_extension )
         label_data.append(emo)
-    # print(label_data)
 
     return music_data,label_data
     
