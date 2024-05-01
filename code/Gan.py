@@ -1,95 +1,112 @@
 import torch
-from torch import nn, optim
+from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
-import numpy as np
+import torch.optim as optim
 
-
-class MusicGAN:
-    def __init__(self,  align, device, epochs=50, batch_size=32):
-        self.device = device
-        self.epochs = epochs
+class MusicGAN(nn.Module):
+    def __init__(self, batch_size, epochs):
+        super(MusicGAN, self).__init__()
+        self.generator = self.build_generator()
+        self.discriminator = self.build_discriminator()
+        self.criterion = nn.BCELoss()
+        self.optimizer_G = optim.Adam(self.generator.parameters(), lr=0.001, betas=(0.5, 0.999))
+        self.optimizer_D = optim.Adam(self.discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
         self.batch_size = batch_size
-        self.align = align
+        self.epochs = epochs
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Generator
-        self.generator = nn.Sequential(
-            nn.Linear(100 + 4, 128),
-            nn.ReLU(True),
-            nn.BatchNorm1d(128),
-            nn.Linear(128, 256),
-            nn.ReLU(True),
+    def build_generator(self):
+        # The generator concatenates noise (100-dim) and a one-hot encoded emotion label (4-dim) as input
+        model = nn.Sequential(
+            nn.Linear(104, 256),
+            nn.LeakyReLU(0.2),
             nn.Linear(256, 512),
-            nn.ReLU(True),
-            nn.Linear(512, self.align * 88),
-            nn.Tanh()
-        ).to(self.device)
+            nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            nn.Linear(512, 1024),
+            nn.Linear(1024, 1500),  # [500, 3] reshaped later
+            nn.Sigmoid()  # Normalize output to [-1, 1]
+        )
+        return model
 
-        # Discriminator
-        self.discriminator = nn.Sequential(
-            nn.Linear(self.align * 88 + 4, 512),
-            nn.LeakyReLU(0.2, True),
+    def build_discriminator(self):
+        # The discriminator input is the flattened music array concatenated with the one-hot emotion label
+        model = nn.Sequential(
+            nn.Linear(1504, 512),
+            nn.LeakyReLU(0.2),
             nn.Dropout(0.3),
             nn.Linear(512, 256),
-            nn.LeakyReLU(0.2, True),
+            nn.LeakyReLU(0.2),
             nn.Dropout(0.3),
-            nn.BatchNorm1d(256),
             nn.Linear(256, 128),
-            nn.LeakyReLU(0.2, True),
-            nn.Dropout(0.2),
+            nn.LeakyReLU(0.2),
             nn.Linear(128, 1),
-            nn.Sigmoid()  # Output a probability between 0 and 1
-        ).to(self.device)
+            nn.Sigmoid()
+        )
+        return model
 
-        # Loss and Optimizers
-        self.loss_function = nn.BCELoss()
-        self.optimizer_g = optim.Adam(self.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-        self.optimizer_d = optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    def forward(self, z, labels):
+        return self.generator(torch.cat([z, labels], dim=1))
 
-    def train(self, music_data, label_data):
-        dataset = TensorDataset(torch.tensor(music_data, dtype=torch.float), torch.tensor(label_data, dtype=torch.long))
-        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-
+    def train(self, music_data, labels):
+        self.to(self.device)
+        # Convert lists to tensors
+        music_data = torch.tensor(music_data, dtype=torch.float32)
+        labels = torch.tensor(labels, dtype=torch.long)
+        dataset = TensorDataset(music_data, labels)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        real_label = 1.0
+        fake_label = 0.0
         for epoch in range(self.epochs):
-            for real_data, labels in loader:
-                real_data = real_data.view(real_data.size(0), -1).to(self.device)
-                labels = nn.functional.one_hot(labels - 1, num_classes=4).float().to(self.device)
+            d_loss_total = 0.0
+            g_loss_total = 0.0
+            for i, (musics, emotion_labels) in enumerate(dataloader):
+                musics = musics.to(self.device).view(musics.size(0), -1)
+                emotion_labels = torch.nn.functional.one_hot(emotion_labels - 1, num_classes=4).float().to(self.device)
+                batch_size = musics.size(0)
+
+                # Correct labels to match the output dimensions of the discriminator
+                real_targets = torch.full((batch_size, 1), real_label, device=self.device)
+                fake_targets = torch.full((batch_size, 1), fake_label, device=self.device)
 
                 # Train Discriminator
-                self.discriminator.zero_grad()
-                real_output = self.discriminator(torch.cat((real_data, labels), 1))
-                real_loss = self.loss_function(real_output, torch.ones(real_data.size(0), 1).to(self.device))
+                self.optimizer_D.zero_grad()
+                real_output = self.discriminator(torch.cat([musics, emotion_labels], dim=1))
+                real_loss = self.criterion(real_output, real_targets)
 
-                noise = torch.randn(real_data.size(0), 100).to(self.device)
-                fake_data = self.generator(torch.cat((noise, labels), 1))
-                fake_output = self.discriminator(torch.cat((fake_data.detach(), labels), 1))
-                fake_loss = self.loss_function(fake_output, torch.zeros(real_data.size(0), 1).to(self.device))
+                noise = torch.randn(batch_size, 100, device=self.device)
+                fake_musics = self.forward(noise, emotion_labels)
+                fake_output = self.discriminator(torch.cat([fake_musics.detach(), emotion_labels], dim=1))
+                fake_loss = self.criterion(fake_output, fake_targets)
 
                 d_loss = real_loss + fake_loss
                 d_loss.backward()
-                self.optimizer_d.step()
+                self.optimizer_D.step()
+                d_loss_total += d_loss.item()
 
                 # Train Generator
-                self.generator.zero_grad()
-                fake_output = self.discriminator(torch.cat((fake_data, labels), 1))
-                g_loss = self.loss_function(fake_output, torch.ones(real_data.size(0), 1).to(self.device))
+                self.optimizer_G.zero_grad()
+                output = self.discriminator(torch.cat([fake_musics, emotion_labels], dim=1))
+                g_loss = self.criterion(output, real_targets)
                 g_loss.backward()
-                self.optimizer_g.step()
+                self.optimizer_G.step()
+                g_loss_total += g_loss.item()
 
+            # Print after each epoch
             print(
-                f'Epoch {epoch + 1}/{self.epochs}, Discriminator Loss: {d_loss.item()}, Generator Loss: {g_loss.item()}')
+                f'Epoch {epoch + 1}/{self.epochs}, D Loss: {d_loss_total / len(dataloader):.4f},'
+                f' G Loss: {g_loss_total / len(dataloader):.4f}')
 
-    def generate(self, emotion_label, device='cuda'):
-        # Ensure the generator is in evaluation mode
+    def generate(self, label, num_samples=1):
         self.generator.eval()
-        noise = torch.randn(1, 100, device=device)  # Adjust size if needed to match the first layer of the generator
-        emotion = nn.functional.one_hot(torch.tensor([emotion_label - 1]), num_classes=4).float().to(device)
-        gen_input = torch.cat((noise, emotion), 1)
-        # Generate music data
+        noise = torch.randn(num_samples, 100, device=self.device)
+        label_vec = torch.nn.functional.one_hot(torch.tensor([label-1]), num_classes=4).float().to(self.device)
         with torch.no_grad():
-            generated_music = self.generator(gen_input)
-        generated_music = generated_music.view(self.align, 88)
-        generated_music = ((generated_music + 1) / 2) * 127  # Scale and shift
-        threshold = 50  # Threshold can be adjusted based on desired sparsity
-        generated_music = torch.where(generated_music < threshold, torch.zeros_like(generated_music), generated_music)
-
-        return generated_music.cpu().numpy()
+            generated_musics = self.forward(noise, label_vec).view(num_samples, 500, 3)
+            generated_musics = generated_musics[0]
+            # Rescale each feature to its appropriate range
+            generated_musics[:, 0] = generated_musics[:, 0] * 87 + 21  # Scale notes
+            generated_musics[:, 1] = generated_musics[:, 1] * 127       # Scale velocities
+            generated_musics[:, 2] = generated_musics[:, 2] * 100       # Scale time delays
+            generated_musics = generated_musics.cpu().numpy()
+        return generated_musics.astype(int)

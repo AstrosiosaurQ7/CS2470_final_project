@@ -37,6 +37,7 @@ def get_label(label_path):
 def get_music_data(folder_path, label_path):
     music_data = []
     label_data = []
+    # TODO change align
     align_length = 500
     for file_name in os.listdir(folder_path):
         # Construct the full path to the MIDI file
@@ -58,7 +59,7 @@ def get_music_data(folder_path, label_path):
         labels = get_label(label_path)
         # print(labels)
         emo = get_emo(labels, filename_without_extension)
-        label_data.append(emo)
+        label_data.append(int(emo))
 
     return music_data, np.array(label_data)
 
@@ -69,20 +70,18 @@ def save_data():
     folder_general_path = '../data/EMOPIA/midis'
     music_data, label_data = get_music_data(folder_general_path, label_general_path)
     np.savez('music_array.npz', *music_data)
-    np.savez('label_array.npz', label_data)
+    np.save('label_array.npy', label_data)
     return
 
 
-def load_music(path):
-    data = np.load(path)
+def load_music():
+    data = np.load('music_array.npz')
     musics = [data[key] for key in data]
     return musics
 
 
-def load_label(path):
-    data = np.load(path)
-    labels = data['number_array']
-    return labels
+def load_label():
+    return np.load('label_array.npy')
 
 
 def get_midi(events, output_file):
@@ -94,7 +93,9 @@ def get_midi(events, output_file):
 
     # Iterate through the events and convert them to MIDI messages
     for event in events:
-        note, velocity, time = event
+        note, velocity, time = event[0], event[1], event[2]
+        if note == 0 and velocity == 0 and time == 0:
+            break
         # Create a note_on message
         note_on = mido.Message('note_on', note=note, velocity=velocity, time=time)
         track.append(note_on)
