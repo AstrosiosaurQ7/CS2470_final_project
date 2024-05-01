@@ -56,7 +56,7 @@ def get_music_data(folder_path, label_path):
         filename_without_extension = os.path.splitext(file_name)[0]
         labels = get_label(label_path)
         # print(labels)
-        emo = get_emo(labels, filename_without_extension )
+        emo = get_emo(labels, filename_without_extension)
         label_data.append(emo)
 
     return music_data, np.array(label_data)
