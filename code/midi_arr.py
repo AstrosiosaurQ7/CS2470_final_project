@@ -97,6 +97,10 @@ def get_midi(events, output_file):
         if note == 0 and velocity == 0 and time == 0:
             break
         # Create a note_on message
+        # convert
+        # time = int(time)
+        # velocity = min(max(int(round(velocity)), 0), 127)
+
         note_on = mido.Message('note_on', note=note, velocity=velocity, time=time)
         track.append(note_on)
 
