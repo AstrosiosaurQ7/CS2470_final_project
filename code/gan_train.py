@@ -2,7 +2,7 @@ import numpy as np
 from new_gan import MusicCGAN
 from gan import MusicGAN
 import torch
-from midi_arr_new import *
+from midi_arr import *
 
 
 # def main():
@@ -17,9 +17,12 @@ from midi_arr_new import *
 
 
 def main():
-    arr = [np.array([1,2,3]), np.array([1,2,3])]
-    arr = np.pad(arr, ((0, 3), (0, 0)), mode='constant')
-    print(arr)
+    # TODO call save_data() once and comment it
+    save_data()
+
+    music = load_music("music_array.npz")
+    label = load_label("label_array.npz")
+
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # torch.cuda.empty_cache()
     # print(torch.cuda.get_device_name())

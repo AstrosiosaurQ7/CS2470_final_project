@@ -1,5 +1,5 @@
 import mido
-from mido import Message, MidiFile, MidiTrack,MetaMessage
+from mido import Message, MidiFile, MidiTrack, MetaMessage
 # from mido import MIDITime
 import os
 import string
@@ -33,6 +33,7 @@ def get_label(label_path):
     label.drop(columns=['ID,4Q,annotator'], inplace=True) 
     return label
 
+
 def get_music_data(folder_path, label_path):
     music_data = []
     label_data = []
@@ -62,13 +63,14 @@ def get_music_data(folder_path, label_path):
     return music_data, np.array(label_data)
 
 
-def save_data(music, label):
+def save_data():
     # TODO CHANGE PATH HERE
     label_general_path = '../data/EMOPIA/label.csv'
     folder_general_path = '../data/EMOPIA/midis'
     music_data, label_data = get_music_data(folder_general_path, label_general_path)
     np.savez('music_array.npz', *music_data)
     np.savez('label_array.npz', label_data)
+    return
 
 
 def load_music(path):
