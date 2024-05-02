@@ -5,7 +5,7 @@ import os
 import string
 import numpy as np
 import pandas as pd
-
+import random
 
 def get_song_msg(mid):
     one_song_msg = []
@@ -96,6 +96,19 @@ def get_midi(events, output_file):
         note, velocity, time = event[0], event[1], event[2]
         if note == 0 and velocity == 0 and time == 0:
             break
+        if note < 21:
+            note = 21
+        if note > 108:
+            left = random.randint(40, 70)
+            note = random.randint(left, 108)
+        if velocity < 0:
+            velocity = 0
+        if velocity > 127:
+            velocity = random.randint(80, 120)
+        if time < 0:
+            time = 0
+        if time > 1000:
+            time = random.randint(300, 600)
         # Create a note_on message
         # convert
         # time = int(time)

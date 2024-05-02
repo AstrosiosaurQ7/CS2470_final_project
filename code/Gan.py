@@ -9,8 +9,8 @@ class MusicGAN(nn.Module):
         self.generator = self.build_generator()
         self.discriminator = self.build_discriminator()
         self.criterion = nn.BCELoss()
-        self.optimizer_G = optim.Adam(self.generator.parameters(), lr=0.001, betas=(0.5, 0.999))
-        self.optimizer_D = optim.Adam(self.discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
+        self.optimizer_G = optim.Adam(self.generator.parameters(), lr=0.002, betas=(0.5, 0.999))
+        self.optimizer_D = optim.Adam(self.discriminator.parameters(), lr=0.0001, betas=(0.5, 0.999))
         self.batch_size = batch_size
         self.epochs = epochs
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -19,13 +19,12 @@ class MusicGAN(nn.Module):
         # The generator concatenates noise (100-dim) and a one-hot encoded emotion label (4-dim) as input
         model = nn.Sequential(
             nn.Linear(104, 256),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             nn.Linear(256, 512),
-            nn.LeakyReLU(0.2),
-            nn.Dropout(0.3),
+            nn.ReLU(),
             nn.Linear(512, 1024),
-            nn.Linear(1024, 1500),  # [500, 3] reshaped later
-            nn.Sigmoid()  # Normalize output to [-1, 1]
+            nn.ReLU(),
+            nn.Linear(1024, 1500),  # Output reshaped to [500, 3]  # Output range between 0 and 1
         )
         return model
 
@@ -37,10 +36,8 @@ class MusicGAN(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2),
-            nn.Dropout(0.3),
-            nn.Linear(256, 128),
-            nn.LeakyReLU(0.2),
-            nn.Linear(128, 1),
+            nn.Dropout(0.2),
+            nn.Linear(256, 1),
             nn.Sigmoid()
         )
         return model
@@ -55,8 +52,8 @@ class MusicGAN(nn.Module):
         labels = torch.tensor(labels, dtype=torch.long)
         dataset = TensorDataset(music_data, labels)
         dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-        real_label = 1.0
-        fake_label = 0.0
+        real_label = 0.9
+        fake_label = 0.1
         for epoch in range(self.epochs):
             d_loss_total = 0.0
             g_loss_total = 0.0
@@ -97,16 +94,15 @@ class MusicGAN(nn.Module):
                 f'Epoch {epoch + 1}/{self.epochs}, D Loss: {d_loss_total / len(dataloader):.4f},'
                 f' G Loss: {g_loss_total / len(dataloader):.4f}')
 
-    def generate(self, label, num_samples=1):
+    def generate(self, label):
         self.generator.eval()
-        noise = torch.randn(num_samples, 100, device=self.device)
+        noise = torch.randn(1, 100, device=self.device)
         label_vec = torch.nn.functional.one_hot(torch.tensor([label-1]), num_classes=4).float().to(self.device)
         with torch.no_grad():
-            generated_musics = self.forward(noise, label_vec).view(num_samples, 500, 3)
-            generated_musics = generated_musics[0]
-            # Rescale each feature to its appropriate range
-            generated_musics[:, 0] = generated_musics[:, 0] * 87 + 21  # Scale notes
-            generated_musics[:, 1] = generated_musics[:, 1] * 127       # Scale velocities
-            generated_musics[:, 2] = generated_musics[:, 2] * 100       # Scale time delays
+            generated_musics = self.forward(noise, label_vec).view(500, 3)
+            # # Rescale each feature to its appropriate range
+            # generated_musics[:, 0] = generated_musics[:, 0] * 87 + 21   # Scale notes
+            # generated_musics[:, 1] = generated_musics[:, 1] * 127       # Scale velocities
+            # generated_musics[:, 2] = generated_musics[:, 2] * 3000       # Scale time delays
             generated_musics = generated_musics.cpu().numpy()
         return generated_musics.astype(int)
