@@ -22,13 +22,12 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.cuda.empty_cache()
     print(torch.cuda.get_device_name())
-    gan = MusicGAN(batch_size=16, epochs=400)
+    gan = MusicGAN(batch_size=256, epochs=400)
     gan.train(music, label)
     for i in range(1, 5):
         # each label 1 time
-        for _ in range(2):
+        for _ in range(40):
             new_music = gan.generate(i)
-            print(new_music[:20])
             print(new_music)
             mus_name = "midi_label{}_number{}.mid".format(i, _+1)
             get_midi(new_music, mus_name)

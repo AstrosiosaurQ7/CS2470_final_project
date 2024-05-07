@@ -9,8 +9,8 @@ class MusicGAN(nn.Module):
         self.generator = self.build_generator()
         self.discriminator = self.build_discriminator()
         self.criterion = nn.BCELoss()
-        self.optimizer_G = optim.Adam(self.generator.parameters(), lr=0.002, betas=(0.5, 0.999))
-        self.optimizer_D = optim.Adam(self.discriminator.parameters(), lr=0.0001, betas=(0.5, 0.999))
+        self.optimizer_G = optim.Adam(self.generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
+        self.optimizer_D = optim.Adam(self.discriminator.parameters(), lr=0.00001, betas=(0.5, 0.999))
         self.batch_size = batch_size
         self.epochs = epochs
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

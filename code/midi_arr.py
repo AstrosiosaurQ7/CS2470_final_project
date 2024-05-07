@@ -66,7 +66,7 @@ def get_music_data(folder_path, label_path):
 
 def save_data():
     # TODO CHANGE PATH HERE
-    label_general_path = '../data/EMOPIA/label.csv'
+    label_general_path = '../data/EMOPIA/label'
     folder_general_path = '../data/EMOPIA/midis'
     music_data, label_data = get_music_data(folder_general_path, label_general_path)
     np.savez('music_array.npz', *music_data)
