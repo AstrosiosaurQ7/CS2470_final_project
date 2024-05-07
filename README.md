@@ -6,4 +6,4 @@ This is the Github repo for the project. For details, visit [DevPost](https://de
 ## Team Member
 Xiaoyan Liu, Yuhong Zhang, Ziyu Wang
 
-**Check out our listening samples. We selcted the most succesful music for each label and clipped about 15 seconds of the entire music**(converted into mp3)
+**Check out our listening samples. We selected the most succesful music piece for each label and clipped about 15 seconds of the entire music**(converted into mp3)
